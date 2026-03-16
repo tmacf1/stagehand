@@ -183,5 +183,20 @@ describe("Model format deprecation", () => {
       );
       expect(deprecationWarning).toBeUndefined();
     });
+
+    it("routes newapi/provider models through NewAPIClient compatibility path", () => {
+      const logs: LogLine[] = [];
+      const logger = (line: LogLine) => logs.push(line);
+      const provider = new LLMProvider(logger);
+
+      const client = provider.getClient("newapi/gpt-5.4", {
+        apiKey: "test-key",
+        baseURL: "https://newapi.example.com/v1",
+      });
+
+      expect(client).toBeDefined();
+      expect(client.constructor.name).toBe("NewAPIClient");
+      expect(client.modelName).toBe("gpt-5.4");
+    });
   });
 });

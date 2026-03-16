@@ -4,6 +4,16 @@ import {
   AvailableCuaModel,
 } from "./v3/types/public/agent.js";
 
+export const DEFAULT_MODEL_NAME = "openai/gpt-4.1-mini" as const;
+
+export function getDefaultModelName(): string {
+  return (
+    process.env.STAGEHAND_MODEL_NAME ??
+    process.env.STAGEHAND_MODEL ??
+    DEFAULT_MODEL_NAME
+  );
+}
+
 //useful when resolving a model from string or object formats we accept
 export function extractModelName(
   model?: string | { modelName: string; [key: string]: unknown },

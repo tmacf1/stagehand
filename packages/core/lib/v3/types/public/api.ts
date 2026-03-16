@@ -305,6 +305,11 @@ export const SessionStartRequestSchema = z
       description: "Model name to use for AI operations",
       example: "openai/gpt-4o",
     }),
+    baseURL: z.string().url().optional().meta({
+      description:
+        "Optional base URL override for OpenAI-compatible or proxied model providers",
+      example: "https://your-newapi-gateway.example.com/v1",
+    }),
     domSettleTimeoutMs: z.number().optional().meta({
       description: "Timeout in ms to wait for DOM to settle",
       example: 5000,

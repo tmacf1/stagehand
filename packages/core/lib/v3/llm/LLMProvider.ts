@@ -16,6 +16,7 @@ import { CerebrasClient } from "./CerebrasClient.js";
 import { GoogleClient } from "./GoogleClient.js";
 import { GroqClient } from "./GroqClient.js";
 import { LLMClient } from "./LLMClient.js";
+import { NewAPIClient } from "./NewAPIClient.js";
 import { OpenAIClient } from "./OpenAIClient.js";
 import { openai, createOpenAI } from "@ai-sdk/openai";
 import { bedrock, createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
@@ -34,8 +35,20 @@ import { ollama, createOllama } from "ollama-ai-provider-v2";
 import { gateway, createGateway } from "ai";
 import { AISDKProvider, AISDKCustomProvider } from "../types/public/model.js";
 
+const createNewAPIProvider: AISDKCustomProvider = (options) =>
+  createOpenAI({
+    ...options,
+    apiKey:
+      options.apiKey ?? process.env.NEWAPI_API_KEY ?? process.env.OPENAI_API_KEY,
+    baseURL:
+      options.baseURL ??
+      process.env.NEWAPI_BASE_URL ??
+      process.env.OPENAI_BASE_URL,
+  });
+
 const AISDKProviders: Record<string, AISDKProvider> = {
   openai,
+  newapi: (modelName) => createNewAPIProvider({})(modelName),
   bedrock,
   anthropic,
   google,
@@ -53,6 +66,7 @@ const AISDKProviders: Record<string, AISDKProvider> = {
 };
 const AISDKProvidersWithAPIKey: Record<string, AISDKCustomProvider> = {
   openai: createOpenAI,
+  newapi: createNewAPIProvider,
   bedrock: createAmazonBedrock,
   anthropic: createAnthropic,
   google: createGoogleGenerativeAI,
@@ -147,6 +161,15 @@ export class LLMProvider {
       const firstSlashIndex = modelName.indexOf("/");
       const subProvider = modelName.substring(0, firstSlashIndex);
       const subModelName = modelName.substring(firstSlashIndex + 1);
+
+      if (subProvider === "newapi") {
+        return new NewAPIClient({
+          logger: this.logger,
+          modelName: subModelName as AvailableModel,
+          clientOptions,
+        });
+      }
+
       if (
         subProvider === "vertex" &&
         !options?.disableAPI &&

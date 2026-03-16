@@ -610,6 +610,12 @@ const agent = stagehand.agent({
 
 If you need Azure OpenAI deployments or enterprise deployments.
 
+You can also set a global default model via env and omit `model` in code:
+
+```bash
+STAGEHAND_MODEL_NAME=newapi/gpt-4.1-mini
+```
+
 <Tabs>
 <Tab title="OpenAI">
 
@@ -624,6 +630,30 @@ const stagehand = new Stagehand({
     baseURL: "https://custom-openai-endpoint.com/v1"
   }
 });
+```
+
+</Tab>
+
+<Tab title="NewAPI / OpenAI-compatible Proxy">
+
+For OpenAI-compatible relay services such as NewAPI, use the `newapi/` provider prefix and point `baseURL` at the relay's OpenAI-compatible `/v1` endpoint:
+
+```typescript
+const stagehand = new Stagehand({
+  env: "BROWSERBASE",
+  model: {
+    modelName: "newapi/gpt-4.1-mini",
+    apiKey: process.env.NEWAPI_API_KEY,
+    baseURL: process.env.NEWAPI_BASE_URL,
+  },
+});
+```
+
+You can also rely on env auto-loading:
+
+```bash
+NEWAPI_API_KEY=your_newapi_key
+NEWAPI_BASE_URL=https://your-newapi-domain.com/v1
 ```
 
 </Tab>

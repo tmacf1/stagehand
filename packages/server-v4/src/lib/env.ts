@@ -16,3 +16,13 @@ export const env = createEnv({
     BB_ENV: process.env.BB_ENV ?? "local",
   },
 });
+
+const FALLBACK_STAGEHAND_MODEL = "openai/gpt-4.1-mini";
+
+export function getDefaultModelName(): string {
+  return (
+    process.env.STAGEHAND_MODEL_NAME ??
+    process.env.STAGEHAND_MODEL ??
+    FALLBACK_STAGEHAND_MODEL
+  );
+}

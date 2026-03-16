@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { extractModelName, resolveModel } from "../../lib/modelUtils.js";
+import {
+  extractModelName,
+  getDefaultModelName,
+  resolveModel,
+} from "../../lib/modelUtils.js";
 
 describe("extractModelName", () => {
   it("returns undefined for undefined input", () => {
@@ -45,5 +49,22 @@ describe("resolveModel", () => {
     expect(result.clientOptions).toMatchObject({ apiKey: "sk-test" });
     // modelName should not leak into clientOptions
     expect(result.clientOptions).not.toHaveProperty("modelName");
+  });
+});
+
+describe("getDefaultModelName", () => {
+  it("prefers STAGEHAND_MODEL_NAME from env", () => {
+    const original = process.env.STAGEHAND_MODEL_NAME;
+    process.env.STAGEHAND_MODEL_NAME = "newapi/gpt-4.1-mini";
+
+    try {
+      expect(getDefaultModelName()).toBe("newapi/gpt-4.1-mini");
+    } finally {
+      if (original === undefined) {
+        delete process.env.STAGEHAND_MODEL_NAME;
+      } else {
+        process.env.STAGEHAND_MODEL_NAME = original;
+      }
+    }
   });
 });

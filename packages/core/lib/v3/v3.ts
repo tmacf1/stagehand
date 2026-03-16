@@ -10,8 +10,7 @@ import {
   StagehandZodSchema,
   toJsonSchema,
 } from "./zodCompat.js";
-import { loadApiKeyFromEnv } from "../utils.js";
-import { extractModelName } from "../modelUtils.js";
+import { loadApiKeyFromEnv, loadBaseURLFromEnv } from "../utils.js";
 import { StagehandLogger, LoggerOptions } from "../logger.js";
 import { ActCache } from "./cache/ActCache.js";
 import { AgentCache } from "./cache/AgentCache.js";
@@ -81,7 +80,11 @@ import {
 } from "./types/public/index.js";
 import { V3Context } from "./understudy/context.js";
 import { Page } from "./understudy/page.js";
-import { resolveModel } from "../modelUtils.js";
+import {
+  extractModelName,
+  getDefaultModelName,
+  resolveModel,
+} from "../modelUtils.js";
 import { StagehandAPIClient } from "./api.js";
 import { validateExperimentalFeatures } from "./agent/utils/validateExperimentalFeatures.js";
 import { flattenVariables } from "./agent/utils/variables.js";
@@ -89,7 +92,6 @@ import { SessionFileLogger, logStagehandStep } from "./flowLogger.js";
 import { createTimeoutGuard } from "./handlers/handlerUtils/timeoutGuard.js";
 import { ActTimeoutError } from "./types/public/sdkErrors.js";
 
-const DEFAULT_MODEL_NAME = "openai/gpt-4.1-mini";
 const DEFAULT_VIEWPORT = { width: 1288, height: 711 };
 const DEFAULT_AGENT_TOOL_TIMEOUT_MS = 45000;
 
@@ -102,7 +104,7 @@ function resolveModelConfiguration(
   model?: V3Options["model"],
 ): ResolvedModelConfiguration {
   if (!model) {
-    return { modelName: DEFAULT_MODEL_NAME };
+    return { modelName: getDefaultModelName() as AvailableModel };
   }
 
   if (typeof model === "string") {
@@ -122,7 +124,7 @@ function resolveModelConfiguration(
     };
   }
 
-  return { modelName: DEFAULT_MODEL_NAME };
+  return { modelName: getDefaultModelName() as AvailableModel };
 }
 
 /**
@@ -322,6 +324,7 @@ export class V3 {
     } else {
       // Ensure API key is set
       let apiKey = (baseClientOptions as { apiKey?: string }).apiKey;
+      let baseURL = (baseClientOptions as { baseURL?: string }).baseURL;
       if (!apiKey) {
         try {
           apiKey = loadApiKeyFromEnv(
@@ -337,9 +340,16 @@ export class V3 {
           throw error;
         }
       }
+      if (!baseURL) {
+        baseURL = loadBaseURLFromEnv(
+          this.modelName.split("/")[0],
+          this.logger,
+        );
+      }
       this.modelClientOptions = {
         ...baseClientOptions,
         apiKey,
+        baseURL,
       } as ClientOptions;
 
       // Get the default client for this model
@@ -931,6 +941,7 @@ export class V3 {
             const { sessionId, available } = await this.apiClient.init({
               modelName: this.modelName,
               modelApiKey: this.modelClientOptions.apiKey,
+              baseURL: this.modelClientOptions.baseURL,
               domSettleTimeoutMs: this.domSettleTimeoutMs,
               verbose: this.verbose,
               systemPrompt: this.opts.systemPrompt,

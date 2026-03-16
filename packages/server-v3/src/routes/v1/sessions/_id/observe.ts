@@ -5,6 +5,7 @@ import type { FastifyZodOpenApiSchema } from "fastify-zod-openapi";
 import { Api } from "@browserbasehq/stagehand";
 
 import { authMiddleware } from "../../../../lib/auth.js";
+import { getDefaultModelName } from "../../../../lib/env.js";
 import { AppError, withErrorHandling } from "../../../../lib/errorHandler.js";
 import { createStreamingResponse } from "../../../../lib/stream.js";
 import { getSessionStore } from "../../../../lib/sessionStoreManager.js";
@@ -59,7 +60,8 @@ const observeRouteHandler: RouteHandlerMethod = withErrorHandling(
               : data.options?.model
                 ? {
                     ...data.options.model,
-                    modelName: data.options.model.modelName ?? "gpt-4o",
+                    modelName:
+                      data.options.model.modelName ?? getDefaultModelName(),
                   }
                 : undefined,
           page,

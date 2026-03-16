@@ -681,6 +681,7 @@ export const providerEnvVarMap: Partial<
   Record<ModelProvider | string, string | Array<string>>
 > = {
   openai: "OPENAI_API_KEY",
+  newapi: "NEWAPI_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
   google: ["GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_API_KEY"],
   vertex: "GOOGLE_VERTEX_AI_API_KEY",
@@ -693,6 +694,24 @@ export const providerEnvVarMap: Partial<
   azure: "AZURE_API_KEY",
   xai: "XAI_API_KEY",
   google_legacy: "GOOGLE_API_KEY",
+};
+
+const providerBaseUrlEnvVarMap: Partial<
+  Record<ModelProvider | string, string | Array<string>>
+> = {
+  openai: "OPENAI_BASE_URL",
+  newapi: "NEWAPI_BASE_URL",
+  anthropic: "ANTHROPIC_BASE_URL",
+  google: "GOOGLE_BASE_URL",
+  vertex: "GOOGLE_VERTEX_BASE_URL",
+  groq: "GROQ_BASE_URL",
+  cerebras: "CEREBRAS_BASE_URL",
+  togetherai: "TOGETHER_AI_BASE_URL",
+  mistral: "MISTRAL_BASE_URL",
+  deepseek: "DEEPSEEK_BASE_URL",
+  perplexity: "PERPLEXITY_BASE_URL",
+  azure: "AZURE_BASE_URL",
+  xai: "XAI_BASE_URL",
 };
 
 const providersWithoutApiKey = new Set(["bedrock", "ollama"]);
@@ -733,6 +752,36 @@ export function loadApiKeyFromEnv(
   }
 
   // Don't log - this is expected when llmClient is provided or API key will be set later
+  return undefined;
+}
+
+export function loadBaseURLFromEnv(
+  provider: string | undefined,
+  logger: (logLine: LogLine) => void,
+): string | undefined {
+  if (!provider) {
+    return undefined;
+  }
+
+  const envVarName = providerBaseUrlEnvVarMap[provider];
+  if (!envVarName) {
+    return undefined;
+  }
+
+  const baseURLFromEnv = Array.isArray(envVarName)
+    ? envVarName
+        .map((name) => process.env[name])
+        .find((value) => value && value.length > 0)
+    : process.env[envVarName as string];
+  if (typeof baseURLFromEnv === "string" && baseURLFromEnv.length > 0) {
+    return baseURLFromEnv;
+  }
+
+  logger({
+    category: "init",
+    message: `No base URL override found in env for provider '${provider}'`,
+    level: 2,
+  });
   return undefined;
 }
 

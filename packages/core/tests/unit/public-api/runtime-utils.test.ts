@@ -39,6 +39,16 @@ describe("Runtime Utils public API types", () => {
     });
   });
 
+  describe("getDefaultModelName", () => {
+    type ExpectedGetDefaultModelNameParams = [];
+
+    it("has correct parameter types", () => {
+      expectTypeOf(
+        Stagehand.getDefaultModelName,
+      ).parameters.branded.toEqualTypeOf<ExpectedGetDefaultModelNameParams>();
+    });
+  });
+
   describe("providerEnvVarMap", () => {
     type ExpectedProviderEnvVarMap = Partial<
       Record<string, string | Array<string>>

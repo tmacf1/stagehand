@@ -1,5 +1,5 @@
 import makeFetchCookie from "fetch-cookie";
-import { loadApiKeyFromEnv } from "../utils.js";
+import { loadApiKeyFromEnv, loadBaseURLFromEnv } from "../utils.js";
 import { STAGEHAND_VERSION } from "../version.js";
 import {
   StagehandAPIError,
@@ -177,6 +177,7 @@ export class StagehandAPIClient {
   private projectId?: string;
   private sessionId?: string;
   private modelApiKey: string;
+  private modelBaseURL?: string;
   private modelProvider?: string;
   private region?: BrowserbaseRegion;
   private logger: (message: LogLine) => void;
@@ -202,6 +203,7 @@ export class StagehandAPIClient {
   async init({
     modelName,
     modelApiKey,
+    baseURL,
     domSettleTimeoutMs,
     verbose,
     systemPrompt,
@@ -214,6 +216,7 @@ export class StagehandAPIClient {
       throw new StagehandAPIError("modelApiKey is required");
     }
     this.modelApiKey = modelApiKey;
+    this.modelBaseURL = baseURL;
     // Extract provider from modelName (e.g., "openai/gpt-5-nano" -> "openai")
     this.modelProvider = modelName?.includes("/")
       ? modelName.split("/")[0]
@@ -231,6 +234,7 @@ export class StagehandAPIClient {
     // Build wire-format request body (Api.SessionStartRequest shape)
     const requestBody: Api.SessionStartRequest = {
       modelName,
+      ...(baseURL ? { baseURL } : {}),
       domSettleTimeoutMs,
       verbose,
       systemPrompt,
@@ -615,13 +619,18 @@ export class StagehandAPIClient {
         provider && provider !== this.modelProvider
           ? (loadApiKeyFromEnv(provider, this.logger) ?? this.modelApiKey)
           : this.modelApiKey;
+      const baseURL =
+        provider && provider !== this.modelProvider
+          ? loadBaseURLFromEnv(provider, this.logger)
+          : this.modelBaseURL;
       return {
         modelName: model,
         apiKey,
+        ...(baseURL ? { baseURL } : {}),
       };
     }
 
-    if (!model.apiKey) {
+    if (!model.apiKey || !model.baseURL) {
       const provider = model.modelName?.includes("/")
         ? model.modelName.split("/")[0]
         : undefined;
@@ -629,9 +638,15 @@ export class StagehandAPIClient {
         provider && provider !== this.modelProvider
           ? (loadApiKeyFromEnv(provider, this.logger) ?? this.modelApiKey)
           : this.modelApiKey;
+      const baseURL =
+        model.baseURL ??
+        (provider && provider !== this.modelProvider
+          ? loadBaseURLFromEnv(provider, this.logger)
+          : this.modelBaseURL);
       return {
         ...model,
-        apiKey,
+        apiKey: model.apiKey ?? apiKey,
+        ...(baseURL ? { baseURL } : {}),
       };
     }
 

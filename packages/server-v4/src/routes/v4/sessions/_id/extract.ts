@@ -5,6 +5,7 @@ import type { FastifyZodOpenApiSchema } from "fastify-zod-openapi";
 import { Api } from "@browserbasehq/stagehand";
 
 import { authMiddleware } from "../../../../lib/auth.js";
+import { getDefaultModelName } from "../../../../lib/env.js";
 import { AppError, withErrorHandling } from "../../../../lib/errorHandler.js";
 import { createStreamingResponse } from "../../../../lib/stream.js";
 import { jsonSchemaToZod } from "../../../../lib/utils.js";
@@ -57,7 +58,10 @@ const extractRouteHandler: RouteHandlerMethod = withErrorHandling(
           typeof modelOpt === "string"
             ? { modelName: modelOpt }
             : modelOpt
-              ? { ...modelOpt, modelName: modelOpt.modelName ?? "gpt-4o" }
+              ? {
+                  ...modelOpt,
+                  modelName: modelOpt.modelName ?? getDefaultModelName(),
+                }
               : undefined;
 
         const safeOptions = {

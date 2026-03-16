@@ -35,14 +35,16 @@ async function example(stagehand: Stagehand) {
 }
 
 (async () => {
+  const useBrowserbase = Boolean(process.env.BROWSERBASE_API_KEY);
   const stagehand = new Stagehand({
-    env: "BROWSERBASE",
-    apiKey: process.env.BROWSERBASE_API_KEY,
-    projectId: process.env.BROWSERBASE_PROJECT_ID,
-    model: {
-      modelName: "openai/gpt-5",
-      apiKey: process.env.MODEL_API_KEY,
-    },
+    env: useBrowserbase ? "BROWSERBASE" : "LOCAL",
+    ...(useBrowserbase
+      ? {
+          apiKey: process.env.BROWSERBASE_API_KEY,
+          projectId: process.env.BROWSERBASE_PROJECT_ID,
+        }
+      : {}),
+    model: process.env.STAGEHAND_MODEL_NAME ?? process.env.STAGEHAND_MODEL,
     verbose: 2,
   });
   try {

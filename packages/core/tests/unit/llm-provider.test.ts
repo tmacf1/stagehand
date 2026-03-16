@@ -55,6 +55,14 @@ describe("getAISDKLanguageModel", () => {
       });
       expect(customModel).toBeDefined();
     });
+
+    it("newapi works as an OpenAI-compatible provider alias", () => {
+      const model = getAISDKLanguageModel("newapi", "gpt-4.1-mini", {
+        apiKey: "test-key",
+        baseURL: "https://newapi.example.com/v1",
+      });
+      expect(model).toBeDefined();
+    });
   });
 
   describe("hasValidOptions logic", () => {

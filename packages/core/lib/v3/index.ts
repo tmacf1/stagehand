@@ -24,6 +24,7 @@ import { tool } from "ai";
 import { getAISDKLanguageModel } from "./llm/LLMProvider.js";
 import { __internalCreateInMemoryAgentCacheHandle } from "./cache/serverAgentCache.js";
 import { maybeRunShutdownSupervisorFromArgv } from "./shutdown/supervisor.js";
+import { DEFAULT_MODEL_NAME, getDefaultModelName } from "../modelUtils.js";
 
 export { V3 } from "./v3.js";
 export { V3 as Stagehand } from "./v3.js";
@@ -61,6 +62,7 @@ export { connectToMCPServer } from "./mcp/connection.js";
 export { V3Evaluator } from "../v3Evaluator.js";
 export { tool } from "ai";
 export { getAISDKLanguageModel } from "./llm/LLMProvider.js";
+export { DEFAULT_MODEL_NAME, getDefaultModelName } from "../modelUtils.js";
 export { __internalCreateInMemoryAgentCacheHandle } from "./cache/serverAgentCache.js";
 export { maybeRunShutdownSupervisorFromArgv as __internalMaybeRunShutdownSupervisorFromArgv } from "./shutdown/supervisor.js";
 export type { ServerAgentCacheHandle } from "./cache/serverAgentCache.js";
@@ -111,6 +113,8 @@ const StagehandDefault = {
   V3Evaluator,
   tool,
   getAISDKLanguageModel,
+  DEFAULT_MODEL_NAME,
+  getDefaultModelName,
   __internalCreateInMemoryAgentCacheHandle,
   __internalMaybeRunShutdownSupervisorFromArgv:
     maybeRunShutdownSupervisorFromArgv,

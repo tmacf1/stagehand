@@ -1,5 +1,6 @@
 export const AISDK_PROVIDERS = [
   "openai",
+  "newapi",
   "anthropic",
   "google",
   "xai",

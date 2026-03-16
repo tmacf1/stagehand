@@ -88,6 +88,7 @@ export type AvailableModel =
 
 export type ModelProvider =
   | "openai"
+  | "newapi"
   | "anthropic"
   | "cerebras"
   | "groq"
