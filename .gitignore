@@ -29,4 +29,4 @@ packages/core/test-results/
 coverage/
 ctrf/
 .stagehand-sea/
-packages/core/.profiles/*
+packages/core/.profiles/
