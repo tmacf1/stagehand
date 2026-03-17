@@ -5,7 +5,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "pnpm --filter @browserbasehq/stagehand-server-v3 run --parallel \"/^(build:esm-tests|build:server:dist|gen:openapi|build:sea:esm)$/\"",
+    "build": "pnpm --filter @browserbasehq/stagehand-server-v3 run --parallel \"/^(build:esm-tests|build:server:dist|gen:openapi)$/\"",
+    "build:full": "pnpm --filter @browserbasehq/stagehand-server-v3 run --parallel \"/^(build:esm-tests|build:server:dist|gen:openapi|build:sea:esm)$/\"",
     "dev": "tsx watch src/server.ts",
     "build:esm-tests": "pnpm -w --dir ../.. exec tsc -p packages/server-v3/tsconfig.tests.json",
     "build:server:dist": "pnpm -w --dir ../.. exec tsc -p packages/server-v3/tsconfig.json && pnpm -w --dir ../.. exec tsc-alias -p packages/server-v3/tsconfig.json",
