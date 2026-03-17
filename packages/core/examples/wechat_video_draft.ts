@@ -1,11 +1,11 @@
 import { Stagehand } from "../lib/v3/index.js";
 import type { Action } from "../lib/v3/types/public/methods.js";
 import type { Page } from "../lib/v3/types/public/page.js";
-import OpenAI from "openai";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { z } from "zod";
 
 const HOME_URL = "https://channels.weixin.qq.com";
 const DEFAULT_TOPIC = "鹦鹉聪明";
@@ -730,6 +730,38 @@ async function clickButtonByText(
   return false;
 }
 
+async function hasButtonByText(page: Page, texts: string[]): Promise<boolean> {
+  const normalizedTargets = texts
+    .map((text) => text.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  if (normalizedTargets.length === 0) {
+    return false;
+  }
+
+  const buttonLocator = page.locator("button");
+  const count = await buttonLocator.count().catch(() => 0);
+  for (let index = 0; index < count; index += 1) {
+    const text = await buttonLocator
+      .nth(index)
+      .innerText()
+      .then((value) => value.replace(/\s+/g, " ").trim())
+      .catch(() => "");
+    if (!text) {
+      continue;
+    }
+
+    if (
+      normalizedTargets.some(
+        (target) => text === target || text.includes(target),
+      )
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 async function clickButtonInContentFrameByText(
   page: Page,
   texts: string[],
@@ -1191,17 +1223,20 @@ async function waitForLogin(page: Page): Promise<void> {
 
   while (Date.now() - startedAt < LOGIN_TIMEOUT_MS) {
     attempt += 1;
-    const [publishVideoCount] = await Promise.all([
+    const [publishVideoCount, publishButtonFound] = await Promise.all([
       countText(page, "发表视频"),
+      hasButtonByText(page, ["发表视频", "发布视频"]).catch(() => false),
     ]);
 
-    if (publishVideoCount > 0) {
+    if (publishVideoCount > 0 || publishButtonFound) {
       console.log("Login detected. Continuing with the publish flow.");
       return;
     }
 
     if (attempt % 5 === 0) {
-      console.log(`Waiting for login to finish. currentUrl=${page.url()}`);
+      console.log(
+        `Waiting for login to finish. publishVideoCount=${publishVideoCount} publishButtonFound=${publishButtonFound} currentUrl=${page.url()}`,
+      );
     }
     await page.waitForTimeout(1_500);
   }
@@ -1209,13 +1244,22 @@ async function waitForLogin(page: Page): Promise<void> {
   throw new Error("Timed out waiting for manual login to complete.");
 }
 
-async function ensureHomeReady(page: Page): Promise<void> {
-  if (page.url().includes("/login.html")) {
+async function ensureHomeReady(
+  page: Page,
+  options?: { cameFromLogin?: boolean },
+): Promise<void> {
+  const cameFromLogin =
+    options?.cameFromLogin ?? page.url().includes("/login.html");
+  console.log(
+    `ensureHomeReady start. currentUrl=${page.url()} cameFromLogin=${cameFromLogin}`,
+  );
+  if (cameFromLogin) {
     await waitForLogin(page);
     await page.goto(HOME_URL, {
       waitUntil: "domcontentloaded",
       timeoutMs: 60_000,
     });
+    await page.waitForTimeout(3_000);
   }
 
   const startedAt = Date.now();
@@ -1242,31 +1286,52 @@ async function ensureHomeReady(page: Page): Promise<void> {
       return;
     }
 
-    const [publishVideoCount, textTargetFound, domTargetFound] =
-      await Promise.all([
-        countText(page, "发表视频").catch(() => 0),
-        hasTextTarget(page, target).catch(() => false),
-        hasDomTargetByText(page, target).catch(() => false),
-      ]);
+    const [
+      publishVideoCount,
+      buttonTextFound,
+      textTargetFound,
+      domTargetFound,
+    ] = await Promise.all([
+      countText(page, "发表视频").catch(() => 0),
+      hasButtonByText(page, target.texts).catch(() => false),
+      hasTextTarget(page, target).catch(() => false),
+      hasDomTargetByText(page, target).catch(() => false),
+    ]);
 
-    if (publishVideoCount > 0 || textTargetFound || domTargetFound) {
+    if (
+      publishVideoCount > 0 ||
+      buttonTextFound ||
+      textTargetFound ||
+      domTargetFound
+    ) {
       console.log(
-        `Home page ready. publishVideoCount=${publishVideoCount} textTargetFound=${textTargetFound} domTargetFound=${domTargetFound} dismissedOverlay=${dismissedOverlay} currentUrl=${page.url()}`,
+        `Home page ready. publishVideoCount=${publishVideoCount} buttonTextFound=${buttonTextFound} textTargetFound=${textTargetFound} domTargetFound=${domTargetFound} dismissedOverlay=${dismissedOverlay} currentUrl=${page.url()}`,
       );
       return;
     }
 
     if (attempt % 5 === 0) {
       console.log(
-        `Waiting for home page. publishVideoCount=${publishVideoCount} textTargetFound=${textTargetFound} domTargetFound=${domTargetFound} dismissedOverlay=${dismissedOverlay} currentUrl=${page.url()}`,
+        `Waiting for home page. publishVideoCount=${publishVideoCount} buttonTextFound=${buttonTextFound} textTargetFound=${textTargetFound} domTargetFound=${domTargetFound} dismissedOverlay=${dismissedOverlay} currentUrl=${page.url()}`,
       );
     }
 
-    if (page.url().includes("/platform") && attempt >= 5) {
+    if (
+      attempt % 10 === 0 &&
+      page.url().includes("/platform") &&
+      publishVideoCount === 0 &&
+      !buttonTextFound &&
+      !textTargetFound &&
+      !domTargetFound
+    ) {
       console.log(
-        `Proceeding from platform page after settling. publishVideoCount=${publishVideoCount} textTargetFound=${textTargetFound} domTargetFound=${domTargetFound} currentUrl=${page.url()}`,
+        `Home page is still not interactive after login; refreshing platform home. currentUrl=${page.url()}`,
       );
-      return;
+      await page.goto(HOME_URL, {
+        waitUntil: "domcontentloaded",
+        timeoutMs: 60_000,
+      });
+      await page.waitForTimeout(3_000);
     }
     await page.waitForTimeout(1_000);
   }
@@ -1525,76 +1590,57 @@ async function waitForDescriptionReady(page: Page): Promise<void> {
   );
 }
 
-function resolveOpenAIApiKey(): string | undefined {
-  return process.env.WECHAT_VIDEO_OPENAI_API_KEY ?? process.env.OPENAI_API_KEY;
-}
-
-function resolveOpenAIModel(): string {
-  const explicitModel =
-    process.env.WECHAT_VIDEO_COPY_MODEL ?? process.env.OPENAI_MODEL;
-  if (explicitModel) {
-    return explicitModel.replace(/^openai\//, "");
-  }
-
-  const stagehandModel = resolveStagehandModel();
-  if (stagehandModel.startsWith("openai/")) {
-    return stagehandModel.replace(/^openai\//, "");
-  }
-
-  return "gpt-4.1-mini";
-}
-
-async function generateDescription(topic: string): Promise<string> {
-  const apiKey = resolveOpenAIApiKey();
-  if (!apiKey) {
-    return [
-      "原来鹦鹉的聪明真的藏在每一个小细节里，",
-      "会观察、会模仿、会互动，",
-      "越看越能发现它们不仅可爱，还特别有自己的想法。",
-    ].join("");
-  }
-
-  const client = new OpenAI({
-    apiKey,
-    baseURL: process.env.OPENAI_BASE_URL,
-  });
-
-  const response = await client.chat.completions.create({
-    model: resolveOpenAIModel(),
-    temperature: 0.8,
-    messages: [
-      {
-        role: "system",
-        content:
-          "You write concise, natural Chinese captions for social video posts.",
-      },
-      {
-        role: "user",
-        content: [
-          `请围绕“${topic}”写一段适合微信视频号的视频描述。`,
-          "要求：中文，40到80字，口语化，有画面感，正向自然。",
-          "不要使用引号，不要分点，不要添加话题标签，不要解释。",
-        ].join(""),
-      },
-    ],
-  });
-
-  const description = response.choices[0]?.message?.content?.trim();
-  if (!description) {
-    throw new Error("The OpenAI response did not contain a description.");
-  }
-  return description.replace(/\s+/g, " ");
+function resolveDescriptionTopic(): string {
+  return process.env.WECHAT_VIDEO_TOPIC?.trim() || DEFAULT_TOPIC;
 }
 
 function sanitizeForInstruction(text: string): string {
   return text.replace(/["']/g, "").replace(/\s+/g, " ").trim();
 }
 
-async function fillDescription(page: Page, description: string): Promise<void> {
+async function generateDescriptionWithStagehand(
+  stagehand: Stagehand,
+  page: Page,
+  topic: string,
+): Promise<string> {
+  const result = await stagehand.extract(
+    [
+      `Generate one natural Chinese video description related to ${sanitizeForInstruction(topic)}.`,
+      "Return only the generated description.",
+      "Requirements: 40 to 80 Chinese characters, conversational, vivid, positive.",
+      "Do not add quotes, hashtags, @mentions, or line breaks.",
+    ].join(" "),
+    z.object({
+      description: z.string(),
+    }),
+    { page, timeout: 30_000 },
+  );
+
+  const description = sanitizeForInstruction(result.description);
+  if (!description) {
+    throw new Error("Stagehand did not generate a usable video description.");
+  }
+
+  console.log(`Generated description with Stagehand: ${description}`);
+  return description;
+}
+
+async function fillDescription(
+  stagehand: Stagehand,
+  page: Page,
+  topic: string,
+): Promise<void> {
+  const description = await generateDescriptionWithStagehand(
+    stagehand,
+    page,
+    topic,
+  );
   const editor = page.deepLocator('iframe[name="content"] >> .input-editor');
   await editor.click();
-  await editor.type(sanitizeForInstruction(description));
-  console.log("Filled the video description in the content frame.");
+  await editor.type(description);
+  console.log(
+    "Filled the video description with a Stagehand-generated caption.",
+  );
 }
 
 async function saveDraft(page: Page): Promise<void> {
@@ -1620,22 +1666,26 @@ async function example(stagehand: Stagehand): Promise<void> {
   const page = stagehand.context.pages()[0];
   const uploadDirectory = resolveUploadDirectory();
   const filePath = pickFirstUploadFile(uploadDirectory);
-  const description = await generateDescription(DEFAULT_TOPIC);
+  const topic = resolveDescriptionTopic();
 
   console.log(`Upload directory: ${uploadDirectory}`);
   console.log(`Selected file: ${filePath}`);
-  console.log(`Generated description: ${description}`);
+  console.log(`Description topic: ${topic}`);
 
   await page.goto(HOME_URL, {
     waitUntil: "domcontentloaded",
     timeoutMs: 60_000,
   });
-  await ensureHomeReady(page);
+  const landedOnLogin = page.url().includes("/login.html");
+  console.log(
+    `Initial landing after goto. currentUrl=${page.url()} landedOnLogin=${landedOnLogin}`,
+  );
+  await ensureHomeReady(page, { cameFromLogin: landedOnLogin });
   await clickHomePublishButton(stagehand, page);
   await waitForPublishPage(page);
   await uploadFirstVideo(stagehand, page, filePath);
   await waitForDescriptionReady(page);
-  await fillDescription(page, description);
+  await fillDescription(stagehand, page, topic);
   await saveDraft(page);
   console.log("The draft save action has been submitted.");
 }
