@@ -12,6 +12,10 @@ if (isCi) {
 
 const result = spawnSync("pnpm", ["run", "build"], {
   stdio: "inherit",
+  env: {
+    ...process.env,
+    SKIP_SEA_BUILD: process.env.SKIP_SEA_BUILD ?? "1",
+  },
   shell: process.platform === "win32",
 });
 
