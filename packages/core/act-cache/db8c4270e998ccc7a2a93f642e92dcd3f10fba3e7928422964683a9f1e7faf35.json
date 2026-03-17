@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "instruction": "click the 令牌分组 dropdown",
+  "url": "https://asooai.com/console/token",
+  "variableKeys": [],
+  "actions": [
+    {
+      "selector": "xpath=/html[1]/body[1]/div[2]/div[1]/div[2]/div[1]/div[2]/div[1]/div[1]/form[1]/div[1]/div[1]/div[1]/div[2]/div[2]/div[1]/div[1]/div[1]",
+      "description": "令牌分组 dropdown combobox in the new token dialog, used to expand and choose a token group",
+      "method": "click",
+      "arguments": []
+    },
+    {
+      "selector": "xpath=/html[1]/body[1]/div[3]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]",
+      "description": "default token group option in the 令牌分组 dropdown listbox",
+      "method": "click",
+      "arguments": []
+    }
+  ],
+  "actionDescription": "令牌分组 dropdown combobox in the new token dialog, used to expand and choose a token group",
+  "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[2]/div[1]/div[2]/div[1]/div[2]/div[1]/div[1]/form[1]/div[1]/div[1]/div[1]/div[2]/div[2]/div[1]/div[1]/div[1] → Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[3]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]"
+}

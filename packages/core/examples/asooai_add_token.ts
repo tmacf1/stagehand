@@ -148,11 +148,10 @@ async function example(stagehand: Stagehand) {
   ]);
   await page.waitForTimeout(1_000);
   await observeAndAct(stagehand, "click the 添加令牌 button");
-  await stagehand.act("fill the 名称 field with the text 'test'");
-  await stagehand.act("click the 令牌分组 dropdown");
-  await page.waitForTimeout(1_000);
-  await observeAndAct(stagehand, "click the vip option in the opened dropdown");
-  await observeAndAct(stagehand, "click the 提交 button");
+  await stagehand.act("type 'test' into the 名称 field");
+  await stagehand.act("click the '令牌分组' dropdown");
+  await stagehand.act("select 'vip' option from dropdown");
+  await stagehand.act("click the 提交 button");
 }
 
 (async () => {
@@ -173,6 +172,7 @@ async function example(stagehand: Stagehand) {
       headless: false,
       args: [`--profile-directory=${profileDirectory}`],
     },
+    cacheDir: "act-cache",
     model: process.env.STAGEHAND_MODEL_NAME ?? process.env.STAGEHAND_MODEL,
     verbose: 2,
   });

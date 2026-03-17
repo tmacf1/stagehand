@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "instruction": "click the 提交 button",
+  "url": "https://asooai.com/console/token",
+  "variableKeys": [],
+  "actions": [
+    {
+      "selector": "xpath=/html[1]/body[1]/div[2]/div[1]/div[2]/div[1]/div[3]/div[1]/div[1]/button[1]",
+      "description": "提交按钮，用于保存并提交新建令牌表单",
+      "method": "click",
+      "arguments": []
+    }
+  ],
+  "actionDescription": "提交按钮，用于保存并提交新建令牌表单",
+  "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[2]/div[1]/div[2]/div[1]/div[3]/div[1]/div[1]/button[1]"
+}
