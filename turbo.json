@@ -1,7 +1,8 @@
 {
   "$schema": "https://v2-8-10.turborepo.dev/schema.json",
   "globalEnv": [
-    "CI"
+    "CI",
+    "SKIP_SEA_BUILD"
   ],
   "globalDependencies": [
     ".github/workflows/ci.yml",
@@ -290,6 +291,7 @@
         "dist/app.mjs"
       ],
       "env": [
+        "SKIP_SEA_BUILD",
         "SEA_BUILD_MODE",
         "SEA_TARGET_PLATFORM",
         "SEA_TARGET_ARCH",
@@ -309,6 +311,7 @@
       "dependsOn": ["^build:cjs"],
       "outputs": ["dist/sea/**"],
       "env": [
+        "SKIP_SEA_BUILD",
         "SEA_BUILD_MODE",
         "SEA_TARGET_PLATFORM",
         "SEA_TARGET_ARCH",
