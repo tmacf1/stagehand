@@ -58,46 +58,6 @@ function resolveStagehandModel(): string {
   );
 }
 
-function resolveChromeExecutablePath(): string | undefined {
-  const explicitPath = process.env.WECHAT_VIDEO_CHROME_PATH;
-  if (explicitPath) {
-    if (!fs.existsSync(explicitPath)) {
-      throw new Error(
-        `WECHAT_VIDEO_CHROME_PATH does not exist: ${explicitPath}`,
-      );
-    }
-    return explicitPath;
-  }
-
-  const candidates =
-    process.platform === "darwin"
-      ? [
-          "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-          path.join(
-            os.homedir(),
-            "Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-          ),
-        ]
-      : process.platform === "win32"
-        ? [
-            path.join(
-              process.env.PROGRAMFILES ?? "C:\\Program Files",
-              "Google/Chrome/Application/chrome.exe",
-            ),
-            path.join(
-              process.env["PROGRAMFILES(X86)"] ?? "C:\\Program Files (x86)",
-              "Google/Chrome/Application/chrome.exe",
-            ),
-          ]
-        : [
-            "/usr/bin/google-chrome",
-            "/usr/bin/google-chrome-stable",
-            "/snap/bin/chromium",
-          ];
-
-  return candidates.find((candidate) => fs.existsSync(candidate));
-}
-
 function parsePositiveInt(value: string): number | null {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
@@ -1691,7 +1651,6 @@ async function example(stagehand: Stagehand): Promise<void> {
 }
 
 (async () => {
-  const chromeExecutablePath = resolveChromeExecutablePath();
   const viewport = resolvePreferredViewport();
   const userDataDir =
     process.env.WECHAT_VIDEO_PROFILE_DIR ??
@@ -1712,9 +1671,8 @@ async function example(stagehand: Stagehand): Promise<void> {
       headless: false,
       acceptDownloads: true,
       connectTimeoutMs: 30_000,
-      viewport,
-      args: [`--profile-directory=${profileDirectory}`, "--start-maximized"],
-      ...(chromeExecutablePath ? { executablePath: chromeExecutablePath } : {}),
+      // viewport,
+      args: [`--profile-directory=${profileDirectory}`],
     },
     cacheDir: "wechat-video-act-cache",
     model: resolveStagehandModel(),
@@ -1722,9 +1680,6 @@ async function example(stagehand: Stagehand): Promise<void> {
   });
 
   try {
-    console.log(
-      `Using Chrome executable: ${chromeExecutablePath ?? "default"}`,
-    );
     console.log(`Using viewport: ${viewport.width}x${viewport.height}`);
     console.log(`Using userDataDir: ${userDataDir}`);
     console.log(`Using profile directory: ${profileDirectory}`);
