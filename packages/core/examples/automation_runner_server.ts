@@ -13,6 +13,7 @@ const PORT = Number.parseInt(
 const MAX_LOG_LINES = 400;
 const WORKSPACE_ROOT = path.resolve(process.cwd(), "..", "..");
 const PACKAGES_DIR = path.join(WORKSPACE_ROOT, "packages");
+const JOBS_RUNTIME_DIR = path.join(WORKSPACE_ROOT, ".runtime", "automation_jobs");
 
 type JobStatus = "running" | "completed" | "failed";
 
@@ -27,6 +28,10 @@ type AutomationParamValue =
 type AutomationRunRequest = {
   moduleName?: string;
   fileName: string;
+  params?: Record<string, AutomationParamValue>;
+};
+
+type AutomationJobInputRequest = {
   params?: Record<string, AutomationParamValue>;
 };
 
@@ -48,6 +53,7 @@ type JobRecord = {
   child: ChildProcess;
   moduleName: string;
   fileName: string;
+  inputFilePath: string;
 };
 
 const jobs = new Map<string, JobRecord>();
@@ -93,6 +99,42 @@ async function readJsonBody<T>(request: http.IncomingMessage): Promise<T> {
   }
 
   return JSON.parse(body) as T;
+}
+
+function ensureJobsRuntimeDir(): void {
+  fs.mkdirSync(JOBS_RUNTIME_DIR, { recursive: true });
+}
+
+function getJobRuntimeDir(jobId: string): string {
+  return path.join(JOBS_RUNTIME_DIR, jobId);
+}
+
+function getJobInputFilePath(jobId: string): string {
+  return path.join(getJobRuntimeDir(jobId), "input.json");
+}
+
+function readInputParams(filePath: string): Record<string, AutomationParamValue> {
+  try {
+    const content = fs.readFileSync(filePath, "utf8").trim();
+    if (!content) {
+      return {};
+    }
+
+    const parsed = JSON.parse(content) as Record<string, AutomationParamValue>;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeInputParams(
+  filePath: string,
+  params: Record<string, AutomationParamValue>,
+): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(params, null, 2), "utf8");
 }
 
 function listWorkspaceModules(): ModuleTarget[] {
@@ -231,10 +273,18 @@ function createJob(payload: AutomationRunRequest): JobRecord {
       `Unknown moduleName: ${resolveRequestedModuleName(payload.moduleName)}`,
     );
   }
+  ensureJobsRuntimeDir();
+  const inputFilePath = getJobInputFilePath(id);
+  writeInputParams(inputFilePath, {});
   const command = buildRunCommand(payload);
+  const childEnv = {
+    ...process.env,
+    AUTOMATION_JOB_ID: id,
+    AUTOMATION_JOB_INPUT_JSON: inputFilePath,
+  };
   const child = spawn("pnpm", command, {
     cwd: target.packageDir,
-    env: process.env,
+    env: childEnv,
     stdio: ["ignore", "pipe", "pipe"],
   });
 
@@ -250,6 +300,7 @@ function createJob(payload: AutomationRunRequest): JobRecord {
     child,
     moduleName: resolveRequestedModuleName(payload.moduleName),
     fileName: payload.fileName.trim(),
+    inputFilePath,
   };
 
   child.stdout?.setEncoding("utf8");
@@ -280,6 +331,7 @@ function serializeJob(job: JobRecord) {
     status: job.status,
     moduleName: job.moduleName,
     fileName: job.fileName,
+    inputFilePath: job.inputFilePath,
     command: job.command.join(" "),
     pid: job.child.pid ?? null,
     createdAt: job.createdAt,
@@ -292,6 +344,11 @@ function serializeJob(job: JobRecord) {
 
 function extractJobId(url: URL): string | null {
   const match = url.pathname.match(/^\/api\/automation\/jobs\/([^/]+)$/);
+  return match?.[1] ?? null;
+}
+
+function extractJobInputId(url: URL): string | null {
+  const match = url.pathname.match(/^\/api\/automation\/jobs\/([^/]+)\/input$/);
   return match?.[1] ?? null;
 }
 
@@ -329,6 +386,37 @@ const server = http.createServer(async (request, reply) => {
       return;
     }
 
+    const inputJobId = extractJobInputId(url);
+    if (method === "POST" && inputJobId) {
+      const job = jobs.get(inputJobId);
+      if (!job) {
+        json(reply, 404, { error: "Job not found." });
+        return;
+      }
+
+      const payload = await readJsonBody<AutomationJobInputRequest>(request);
+      const params = payload.params;
+      if (!params || typeof params !== "object" || Array.isArray(params)) {
+        json(reply, 400, { error: "params object is required." });
+        return;
+      }
+
+      const currentParams = readInputParams(job.inputFilePath);
+      const nextParams = {
+        ...currentParams,
+        ...params,
+      };
+      writeInputParams(job.inputFilePath, nextParams);
+
+      json(reply, 200, {
+        message: "Job input accepted.",
+        jobId: job.id,
+        inputFilePath: job.inputFilePath,
+        params: nextParams,
+      });
+      return;
+    }
+
     const jobId = extractJobId(url);
     if (method === "GET" && jobId) {
       const job = jobs.get(jobId);
@@ -350,7 +438,7 @@ const server = http.createServer(async (request, reply) => {
       }
 
       const job = createJob(payload);
-      json(reply, 202, {
+      json(reply, 200, {
         message: "Automation job started.",
         job: serializeJob(job),
         statusUrl: `/api/automation/jobs/${job.id}`,

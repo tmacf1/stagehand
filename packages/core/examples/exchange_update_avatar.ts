@@ -527,9 +527,50 @@ async function waitFor<T>(
   throw new Error(`Timed out waiting for ${label}.`);
 }
 
+function readOtpFromJobInput(): string | null {
+  const inputJsonPath = process.env.AUTOMATION_JOB_INPUT_JSON;
+  if (!inputJsonPath || !fs.existsSync(inputJsonPath)) {
+    return null;
+  }
+
+  try {
+    const content = fs.readFileSync(inputJsonPath, "utf8").trim();
+    if (!content) {
+      return null;
+    }
+
+    const parsed = JSON.parse(content) as Record<string, unknown>;
+    const candidateKeys = [
+      "code",
+      "otp",
+      "otpCode",
+      "googleCode",
+      "googleAuthCode",
+      "verificationCode",
+    ];
+
+    for (const key of candidateKeys) {
+      const value = parsed[key];
+      if (typeof value !== "string" || !value.trim()) {
+        continue;
+      }
+
+      const code = value.match(/\d{6}/)?.[0] ?? value.trim();
+      const nextPayload = { ...parsed };
+      delete nextPayload[key];
+      fs.writeFileSync(inputJsonPath, JSON.stringify(nextPayload, null, 2), "utf8");
+      return code;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 async function waitForOtpCode(
   page: Page,
-  filePath: string,
+  _filePath: string,
   timeoutMs: number,
   pollIntervalMs: number,
 ): Promise<string> {
@@ -539,31 +580,26 @@ async function waitForOtpCode(
   while (Date.now() - startedAt < timeoutMs) {
     pollCount += 1;
 
-    if (fs.existsSync(filePath)) {
-      const content = fs.readFileSync(filePath, "utf8");
-      const firstNonEmptyLine = content
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .find(Boolean);
-
-      if (firstNonEmptyLine) {
-        const code = firstNonEmptyLine.match(/\d{6}/)?.[0] ?? firstNonEmptyLine;
-
-        // Clear the code file after consuming the current OTP so stale codes
-        // are not reused by later runs.
-        fs.writeFileSync(filePath, "", "utf8");
-        return code;
-      }
+    const jobInputCode = readOtpFromJobInput();
+    if (jobInputCode) {
+      return jobInputCode;
     }
 
     if (pollCount % 5 === 0) {
-      console.log(`Waiting for OTP code in ${filePath}...`);
+      const inputJsonPath = process.env.AUTOMATION_JOB_INPUT_JSON;
+      if (inputJsonPath) {
+        console.log(`Waiting for OTP code in job input ${inputJsonPath}...`);
+      } else {
+        console.log(
+          "Waiting for OTP code in job input, but AUTOMATION_JOB_INPUT_JSON is missing.",
+        );
+      }
     }
 
     await page.waitForTimeout(pollIntervalMs);
   }
 
-  throw new Error(`Timed out waiting for OTP code in ${filePath}.`);
+  throw new Error("Timed out waiting for OTP code from job input.");
 }
 
 async function bodyText(
