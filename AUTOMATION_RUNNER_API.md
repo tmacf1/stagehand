@@ -304,7 +304,7 @@ curl http://127.0.0.1:8788/api/automation/jobs/job-id
 **Method**
 
 ```http
-POST /api/automation/jobs/:jobId/input
+POST /api/automation/job/input
 ```
 
 **Description**
@@ -317,6 +317,7 @@ POST /api/automation/jobs/:jobId/input
 
 ```json
 {
+  "jobId": "job-id",
   "params": {
     "code": "123456"
   }
@@ -334,9 +335,10 @@ POST /api/automation/jobs/:jobId/input
 **Example**
 
 ```bash
-curl -X POST http://127.0.0.1:8788/api/automation/jobs/<jobId>/input \
+curl -X POST http://127.0.0.1:8788/api/automation/job/input \
   -H 'Content-Type: application/json' \
   -d '{
+    "jobId": "job-id",
     "params": {
       "code": "123456"
     }
@@ -383,9 +385,10 @@ curl http://127.0.0.1:8788/api/automation/jobs/<jobId>
 ### Step 3. Send OTP Later
 
 ```bash
-curl -X POST http://127.0.0.1:8788/api/automation/jobs/<jobId>/input \
+curl -X POST http://127.0.0.1:8788/api/automation/job/input \
   -H 'Content-Type: application/json' \
   -d '{
+    "jobId": "<jobId>",
     "params": {
       "code": "123456"
     }
