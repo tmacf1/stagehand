@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "instruction": "select 'vip' option from dropdown",
+  "url": "https://asooai.com/console/token",
+  "variableKeys": [],
+  "actions": [
+    {
+      "selector": "xpath=/html[1]/body[1]/div[2]/div[1]/div[2]/div[1]/div[2]/div[1]/div[1]/form[1]/div[1]/div[1]/div[1]/div[2]/div[2]/div[1]/div[1]/div[1]",
+      "description": "令牌分组 dropdown currently showing 默认分组, likely where the 'vip' option can be selected",
+      "method": "click",
+      "arguments": []
+    },
+    {
+      "selector": "xpath=/html[1]/body[1]/div[3]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[2]",
+      "description": "vip option in the 令牌分组 listbox, labeled vip分组",
+      "method": "click",
+      "arguments": []
+    }
+  ],
+  "actionDescription": "令牌分组 dropdown currently showing 默认分组, likely where the 'vip' option can be selected",
+  "message": "Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[2]/div[1]/div[2]/div[1]/div[2]/div[1]/div[1]/form[1]/div[1]/div[1]/div[1]/div[2]/div[2]/div[1]/div[1]/div[1] → Action [click] performed successfully on selector: xpath=/html[1]/body[1]/div[3]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[1]/div[2]"
+}

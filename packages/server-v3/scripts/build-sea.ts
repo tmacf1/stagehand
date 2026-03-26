@@ -85,6 +85,7 @@ const includeSourcemaps = parseBoolean(
   argValue("include-sourcemaps") ?? process.env.SEA_INCLUDE_SOURCEMAPS,
   false,
 );
+const skipSeaBuild = parseBoolean(process.env.SKIP_SEA_BUILD, false);
 
 const run = (cmd: string, args: string[], opts: { cwd?: string } = {}) => {
   const result = spawnSync(cmd, args, { stdio: "inherit", ...opts });
@@ -428,6 +429,11 @@ if (needsWrite) {
 };
 
 const main = async () => {
+  if (skipSeaBuild) {
+    console.log("Skipping SEA build because SKIP_SEA_BUILD is enabled.");
+    return;
+  }
+
   fs.mkdirSync(`${repoDir}/packages/server-v3/dist/sea`, { recursive: true });
 
   let mainPath: string;
