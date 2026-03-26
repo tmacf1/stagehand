@@ -30,3 +30,4 @@ coverage/
 ctrf/
 .stagehand-sea/
 packages/core/.profiles/
+.runtime/
