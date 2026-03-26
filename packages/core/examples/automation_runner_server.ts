@@ -32,6 +32,7 @@ type AutomationRunRequest = {
 };
 
 type AutomationJobInputRequest = {
+  jobId: string;
   params?: Record<string, AutomationParamValue>;
 };
 
@@ -347,11 +348,6 @@ function extractJobId(url: URL): string | null {
   return match?.[1] ?? null;
 }
 
-function extractJobInputId(url: URL): string | null {
-  const match = url.pathname.match(/^\/api\/automation\/jobs\/([^/]+)\/input$/);
-  return match?.[1] ?? null;
-}
-
 const server = http.createServer(async (request, reply) => {
   try {
     const method = request.method ?? "GET";
@@ -386,15 +382,19 @@ const server = http.createServer(async (request, reply) => {
       return;
     }
 
-    const inputJobId = extractJobInputId(url);
-    if (method === "POST" && inputJobId) {
-      const job = jobs.get(inputJobId);
+    if (method === "POST" && url.pathname === "/api/automation/job/input") {
+      const payload = await readJsonBody<AutomationJobInputRequest>(request);
+      if (!payload.jobId?.trim()) {
+        json(reply, 400, { error: "jobId is required." });
+        return;
+      }
+
+      const job = jobs.get(payload.jobId.trim());
       if (!job) {
         json(reply, 404, { error: "Job not found." });
         return;
       }
 
-      const payload = await readJsonBody<AutomationJobInputRequest>(request);
       const params = payload.params;
       if (!params || typeof params !== "object" || Array.isArray(params)) {
         json(reply, 400, { error: "params object is required." });
