@@ -44,4 +44,19 @@ describe("newapi configuration", () => {
       baseURL: "https://newapi.example.com/v1",
     });
   });
+
+  it("builds an AISDK-backed llmClient for newapi gemini models", () => {
+    process.env.NEWAPI_API_KEY = "newapi-test-key";
+    process.env.NEWAPI_BASE_URL = "https://newapi.example.com/v1";
+
+    const stagehand = new V3({
+      env: "LOCAL",
+      model: "newapi/gemini-3.1-flash-lite-preview",
+    });
+
+    expect(
+      (stagehand as unknown as { llmClient: { constructor: { name: string } } })
+        .llmClient.constructor.name,
+    ).toBe("AISdkClient");
+  });
 });

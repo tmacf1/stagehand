@@ -198,5 +198,20 @@ describe("Model format deprecation", () => {
       expect(client.constructor.name).toBe("NewAPIClient");
       expect(client.modelName).toBe("gpt-5.4");
     });
+
+    it("routes newapi gemini models through AISdkClient", () => {
+      const logs: LogLine[] = [];
+      const logger = (line: LogLine) => logs.push(line);
+      const provider = new LLMProvider(logger);
+
+      const client = provider.getClient("newapi/gemini-3.1-flash-lite-preview", {
+        apiKey: "test-key",
+        baseURL: "https://newapi.example.com/v1",
+      });
+
+      expect(client).toBeDefined();
+      expect(client.constructor.name).toBe("AISdkClient");
+      expect(client.modelName).toContain("gemini-3.1-flash-lite-preview");
+    });
   });
 });

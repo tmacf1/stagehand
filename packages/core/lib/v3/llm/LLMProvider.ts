@@ -35,6 +35,10 @@ import { ollama, createOllama } from "ollama-ai-provider-v2";
 import { gateway, createGateway } from "ai";
 import { AISDKProvider, AISDKCustomProvider } from "../types/public/model.js";
 
+function isGeminiModel(modelName: string): boolean {
+  return modelName.startsWith("gemini");
+}
+
 const createNewAPIProvider: AISDKCustomProvider = (options) =>
   createOpenAI({
     ...options,
@@ -44,6 +48,20 @@ const createNewAPIProvider: AISDKCustomProvider = (options) =>
       options.baseURL ??
       process.env.NEWAPI_BASE_URL ??
       process.env.OPENAI_BASE_URL,
+  });
+
+const createNewAPIGoogleProvider: AISDKCustomProvider = (options) =>
+  createGoogleGenerativeAI({
+    ...options,
+    apiKey:
+      options.apiKey ??
+      process.env.NEWAPI_API_KEY ??
+      process.env.GEMINI_API_KEY ??
+      process.env.GOOGLE_API_KEY,
+    baseURL:
+      options.baseURL ??
+      process.env.NEWAPI_BASE_URL ??
+      process.env.GOOGLE_BASE_URL,
   });
 
 const AISDKProviders: Record<string, AISDKProvider> = {
@@ -118,6 +136,11 @@ export function getAISDKLanguageModel(
   subModelName: string,
   clientOptions?: ClientOptions,
 ) {
+  if (subProvider === "newapi" && isGeminiModel(subModelName)) {
+    const provider = createNewAPIGoogleProvider(clientOptions ?? {});
+    return provider(subModelName);
+  }
+
   const hasValidOptions =
     clientOptions &&
     Object.values(clientOptions).some((v) => v !== undefined && v !== null);
@@ -162,7 +185,7 @@ export class LLMProvider {
       const subProvider = modelName.substring(0, firstSlashIndex);
       const subModelName = modelName.substring(firstSlashIndex + 1);
 
-      if (subProvider === "newapi") {
+      if (subProvider === "newapi" && !isGeminiModel(subModelName)) {
         return new NewAPIClient({
           logger: this.logger,
           modelName: subModelName as AvailableModel,

@@ -63,6 +63,19 @@ describe("getAISDKLanguageModel", () => {
       });
       expect(model).toBeDefined();
     });
+
+    it("newapi routes gemini models through the Gemini-compatible AISDK provider", () => {
+      const model = getAISDKLanguageModel(
+        "newapi",
+        "gemini-3.1-flash-lite-preview",
+        {
+          apiKey: "test-key",
+          baseURL: "https://newapi.example.com/v1",
+        },
+      );
+      expect(model).toBeDefined();
+      expect(model.modelId).toContain("gemini-3.1-flash-lite-preview");
+    });
   });
 
   describe("hasValidOptions logic", () => {
