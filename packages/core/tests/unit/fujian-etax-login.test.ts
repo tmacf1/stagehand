@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildCaptchaAgentInstruction,
-  buildCaptchaActInstruction,
-  CAPTCHA_AGENT_EXCLUDED_TOOLS,
+  buildCaptchaCoordinateExtractionPrompt,
   buildVisibleTextMatchExpression,
   getCaptchaAttemptOutcome,
   getRandomDelayMs,
-  isTextMatch,
-} from "../../lib/v3/examples/fujianEtaxLogin.js";
+  normalizeCaptchaPointsPayload,
+  normalizeCaptchaResponseText,
+  projectCaptchaPointToViewport,
+} from "../../examples/fujian_etax_login.js";
 
 describe("getRandomDelayMs", () => {
   it("returns the lower bound when random is 0", () => {
@@ -34,53 +34,68 @@ describe("getCaptchaAttemptOutcome", () => {
   });
 });
 
-describe("buildCaptchaActInstruction", () => {
-  it("mentions the expected click-order behavior and confirmation button", () => {
-    const instruction = buildCaptchaActInstruction();
+describe("buildCaptchaCoordinateExtractionPrompt", () => {
+  it("asks for a coordinate array using the top-left origin", () => {
+    const prompt = buildCaptchaCoordinateExtractionPrompt();
 
-    expect(instruction).toContain("右上角小图");
-    expect(instruction).toContain("下方大图");
-    expect(instruction).toContain("确定");
+    expect(prompt).toContain('"points"');
+    expect(prompt).toContain("左上角为坐标原点 (0,0)");
+    expect(prompt).toContain("1000x1000");
+    expect(prompt).toContain("顶层只有 points 字段");
   });
 });
 
-describe("buildCaptchaAgentInstruction", () => {
-  it("requires matching the click count to the small-image character count", () => {
-    const instruction = buildCaptchaAgentInstruction();
+describe("projectCaptchaPointToViewport", () => {
+  it("maps captcha coordinates into the visible canvas bounds with a safe margin", () => {
+    expect(
+      projectCaptchaPointToViewport(
+        { x: 0, y: 0 },
+        { left: 100, top: 200, width: 300, height: 400 },
+      ),
+    ).toEqual({ x: 106, y: 206 });
 
-    expect(instruction).toContain("先数清楚");
-    expect(instruction).toContain("点击次数必须和小图中的字数完全一致");
-    expect(instruction).toContain("坐标数组");
-    expect(instruction).toContain("1000x1000");
-    expect(instruction).toContain("不要补额外坐标");
-    expect(instruction).toContain("随机等待 1 到 2 秒");
-    expect(instruction).toContain("绝对不要点击验证码弹窗外部");
-    expect(instruction).toContain("只有在完成全部汉字点击后");
-    expect(instruction).toContain("确定");
+    expect(
+      projectCaptchaPointToViewport(
+        { x: 1000, y: 1000 },
+        { left: 100, top: 200, width: 300, height: 400 },
+      ),
+    ).toEqual({ x: 394, y: 594 });
   });
 });
 
-describe("CAPTCHA_AGENT_EXCLUDED_TOOLS", () => {
-  it("removes navigation and unrelated hybrid tools", () => {
-    expect(CAPTCHA_AGENT_EXCLUDED_TOOLS).toContain("goto");
-    expect(CAPTCHA_AGENT_EXCLUDED_TOOLS).toContain("navback");
-    expect(CAPTCHA_AGENT_EXCLUDED_TOOLS).toContain("search");
-    expect(CAPTCHA_AGENT_EXCLUDED_TOOLS).toContain("fillFormVision");
-    expect(CAPTCHA_AGENT_EXCLUDED_TOOLS).toContain("act");
+describe("normalizeCaptchaPointsPayload", () => {
+  it("accepts tuple-style point arrays from the model", () => {
+    expect(
+      normalizeCaptchaPointsPayload([
+        [286, 159],
+        [518, 191],
+      ]),
+    ).toEqual([
+      { x: 286, y: 159 },
+      { x: 518, y: 191 },
+    ]);
+  });
+
+  it("accepts coords wrapper objects from the model", () => {
+    expect(
+      normalizeCaptchaPointsPayload({
+        coords: [
+          [227, 584],
+          [109, 178],
+        ],
+      }),
+    ).toEqual([
+      { x: 227, y: 584 },
+      { x: 109, y: 178 },
+    ]);
   });
 });
 
-describe("isTextMatch", () => {
-  it("matches the same text after trimming whitespace", () => {
-    expect(isTextMatch("  我知道了  ", "我知道了")).toBe(true);
-  });
-
-  it("matches text split by line breaks", () => {
-    expect(isTextMatch("我\n知道了", "我知道了")).toBe(true);
-  });
-
-  it("rejects different text", () => {
-    expect(isTextMatch("登录", "我知道了")).toBe(false);
+describe("normalizeCaptchaResponseText", () => {
+  it("converts tuple-style coordinate lists into JSON-compatible arrays", () => {
+    expect(
+      normalizeCaptchaResponseText("[(575, 637), (412, 637), (887, 450), (712, 637)]"),
+    ).toBe("[[575, 637], [412, 637], [887, 450], [712, 637]]");
   });
 });
 
