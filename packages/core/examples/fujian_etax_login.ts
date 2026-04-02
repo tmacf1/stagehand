@@ -1095,13 +1095,13 @@ async function fillCredentialsAndSubmit(stagehand: Stagehand): Promise<void> {
 async function solveCaptcha(
   stagehand: Stagehand,
   captchaLlmClient: LLMClient,
-): Promise<void> {
+): Promise<boolean> {
   const page = stagehand.context.pages()[0];
   const captchaShown = await waitForCaptchaDialog(page);
 
   if (!captchaShown) {
-    console.log("No captcha dialog detected after login submit. Stopping.");
-    return;
+    console.log("No captcha dialog detected. Waiting for a future captcha trigger.");
+    return true;
   }
 
   console.log(
@@ -1158,8 +1158,8 @@ async function solveCaptcha(
     const outcome = getCaptchaAttemptOutcome(!solved, attempt);
 
     if (outcome === "solved") {
-      console.log("Captcha dialog disappeared. Automation stopping.");
-      return;
+      console.log("Captcha dialog disappeared. Current verification round completed.");
+      return true;
     }
 
     if (outcome === "retry") {
@@ -1168,6 +1168,38 @@ async function solveCaptcha(
     }
 
     throw new Error("Captcha failed three times. Stopping the automation.");
+  }
+
+  return false;
+}
+
+async function monitorCaptchaDialogs(
+  stagehand: Stagehand,
+  captchaLlmClient: LLMClient,
+): Promise<void> {
+  const page = stagehand.context.pages()[0];
+  let lastVisible = false;
+
+  console.log(
+    "Entering persistent captcha monitor mode. If a captcha dialog appears again after manual actions, it will be processed automatically.",
+  );
+
+  while (true) {
+    const captchaVisible = await isCaptchaDialogVisible(page).catch(() => false);
+
+    if (captchaVisible && !lastVisible) {
+      console.log("Captcha dialog detected by monitor. Starting a verification round.");
+      const solved = await solveCaptcha(stagehand, captchaLlmClient);
+      if (!solved) {
+        throw new Error("Captcha monitoring stopped because the verification round did not complete.");
+      }
+      console.log(
+        "Captcha monitor is idle again and will continue waiting for the next captcha dialog.",
+      );
+    }
+
+    lastVisible = captchaVisible;
+    await sleep(500);
   }
 }
 
@@ -1212,12 +1244,16 @@ async function run(): Promise<void> {
     await dismissNoticePopupIfNeeded(stagehand);
     await openLoginPage(stagehand);
     await fillCredentialsAndSubmit(stagehand);
-    await solveCaptcha(stagehand, captchaLlmClient);
-
-    const captchaVisible = await isCaptchaDialogVisible(page);
-    if (captchaVisible) {
+    const solved = await solveCaptcha(stagehand, captchaLlmClient);
+    if (!solved) {
       throw new Error("Captcha dialog is still visible after the allowed retries.");
     }
+
+    if (autoClose) {
+      return;
+    }
+
+    await monitorCaptchaDialogs(stagehand, captchaLlmClient);
   } finally {
     if (autoClose) {
       await stagehand.close();
